@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ラベベTube</title>
+<style>
+:root{--bg:#0f0f0f;--text:#f1f1f1;--muted:#aaa;--accent:#ff4d6d}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:"Segoe UI","Hiragino Sans","Noto Sans JP",sans-serif;min-height:100vh}
+header{position:sticky;top:0;z-index:100;background:rgba(15,15,15,.97);border-bottom:1px solid #222;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.logo{font-size:22px;font-weight:800;color:var(--accent);cursor:pointer;user-select:none;white-space:nowrap}
+.logo span{color:#fff}
+.search-wrap{flex:1;max-width:560px;display:flex;background:#121212;border:1px solid #333;border-radius:24px;overflow:hidden}
+.search-wrap input{flex:1;background:transparent;border:none;color:#fff;padding:11px 16px;font-size:15px;outline:none}
+.search-wrap button{background:#222;border:none;color:#ccc;padding:0 18px;cursor:pointer;font-size:16px}
+.container{max-width:1100px;margin:0 auto;padding:20px 14px 70px}
+.section-title{font-size:17px;font-weight:700;margin-bottom:10px}
+.hint{font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.5}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.card{cursor:pointer}
+.thumb{position:relative;width:100%;aspect-ratio:16/9;background:#1a1a1a;border-radius:12px;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.duration{position:absolute;right:7px;bottom:7px;background:rgba(0,0,0,.85);color:#fff;font-size:12px;padding:2px 6px;border-radius:4px}
+.meta{padding:8px 2px 0}
+.title{font-size:14px;font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.channel{font-size:12px;color:var(--muted);margin-top:4px}
+.stats{font-size:12px;color:var(--muted);margin-top:2px}
+.back{display:inline-block;margin-bottom:12px;color:var(--muted);font-size:14px;cursor:pointer}
+.video-box{width:100%;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;position:relative;margin-bottom:14px}
+.video-box iframe{width:100%;height:100%;border:none;display:block}
+.placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#111;color:#888;font-size:14px;text-align:center;padding:20px}
+.info h1{font-size:18px;font-weight:700;line-height:1.3;margin-bottom:8px}
+.meta-row{color:var(--muted);font-size:13px;margin-bottom:12px}
+.channel-name{font-weight:600;font-size:14px;margin-bottom:10px}
+.desc{background:#1a1a1a;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.55;color:#ddd;max-height:140px;overflow:auto;white-space:pre-wrap}
+.empty,.loading{text-align:center;padding:40px 16px;color:var(--muted);font-size:14px}
+.error{color:#ff8a8a}
+.box{background:#1a1a1a;border-radius:12px;padding:16px;margin-bottom:18px}
+.box label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}
+.box input{width:100%;background:#121212;border:1px solid #333;border-radius:8px;color:#fff;padding:10px 12px;font-size:14px;outline:none;margin-bottom:10px}
+.box button{width:100%;padding:11px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;font-size:14px;cursor:pointer}
+.hide{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" id="logoBtn">ラベベ<span>Tube</span></div>
+  <div class="search-wrap">
+    <input type="search" id="searchInput" placeholder="キーワード検索 or YouTubeのURL" enterkeyhint="search">
+    <button type="button" id="searchBtn">🔍</button>
+  </div>
+</header>
+
+<main class="container">
+  <div id="homeView">
+    <div class="section-title">ラベベTube</div>
+    <div class="hint">
+      しあTube風の軽量プレイヤーです。<br>
+      ・キーワードで検索（Invidious経由）<br>
+      ・または YouTubeのURLをそのまま貼って再生
+    </div>
+
+    <div class="box">
+      <label>YouTubeのURLを貼って再生（検索が失敗したとき用）</label>
+      <input type="url" id="urlInput" placeholder="https://www.youtube.com/watch?v=...">
+      <button type="button" id="urlPlayBtn">このURLを再生</button>
+    </div>
+
+    <div class="section-title" id="sectionTitle">検索結果</div>
+    <div class="loading" id="loading" style="display:none">検索中...</div>
+    <div class="empty" id="emptyMsg" style="display:none"></div>
+    <div class="grid" id="videoGrid"></div>
+  </div>
+
+  <div id="playerView" class="hide">
+    <div class="back" id="backBtn">← 戻る</div>
+    <div class="video-box">
+      <div class="placeholder" id="placeholder">読み込み中...</div>
+      <iframe id="ytFrame" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" style="display:none"></iframe>
+    </div>
+    <div class="info">
+      <h1 id="videoTitle">タイトル</h1>
+      <div class="meta-row" id="videoMeta"></div>
+      <div class="channel-name" id="channelName"></div>
+      <div class="desc" id="videoDesc"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+(function(){
+"use strict";
+
+// CORSが通りやすい／日本寄りの候補
+var API_LIST = [
+  "https://invidious.f5.si",
+  "https://yt.artemislena.eu",
+  "https://invidious.nerdvpn.de",
+  "https://inv.nadeko.net",
+  "https://invidious.tiekoetter.com"
+];
+
+function $(id){ return document.getElementById(id); }
+
+function extractVideoId(input){
+  if(!input) return null;
+  input = input.trim();
+  // すでにIDだけ
+  if(/^[a-zA-Z0-9_-]{11}$/.test(input)) return input;
+  try{
+    var u = new URL(input);
+    if(u.hostname.indexOf("youtu.be") !== -1){
+      return u.pathname.replace("/","").slice(0,11);
+    }
+    if(u.hostname.indexOf("youtube.com") !== -1 || u.hostname.indexOf("youtube-nocookie.com") !== -1){
+      var v = u.searchParams.get("v");
+      if(v) return v;
+      var m = u.pathname.match(/\/(embed|shorts|live)\/([a-zA-Z0-9_-]{11})/);
+      if(m) return m[2];
+    }
+  }catch(e){}
+  var m2 = input.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})(?:[&?\s]|$)/);
+  return m2 ? m2[1] : null;
+}
+
+function formatViews(n){
+  n = parseInt(n,10)||0;
+  if(n>=100000000) return (n/100000000).toFixed(1).replace(/\.0$/,"")+"億回";
+  if(n>=10000) return (n/10000).toFixed(1).replace(/\.0$/,"")+"万回";
+  if(n>=1000) return (n/1000).toFixed(1).replace(/\.0$/,"")+"千回";
+  return n+"回";
+}
+
+function formatDuration(sec){
+  sec = parseInt(sec,10)||0;
+  var h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60;
+  if(h>0) return h+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+  return m+":"+String(s).padStart(2,"0");
+}
+
+function hideAll(){
+  $("homeView").classList.add("hide");
+  $("playerView").classList.add("hide");
+}
+
+function showHome(){
+  hideAll();
+  $("homeView").classList.remove("hide");
+  var f=$("ytFrame");
+  f.src=""; f.style.display="none";
+  $("placeholder").style.display="flex";
+}
+
+function playById(id, meta){
+  if(!id) return;
+  hideAll();
+  $("playerView").classList.remove("hide");
+
+  $("videoTitle").textContent = (meta && meta.title) || ("動画 " + id);
+  $("videoMeta").textContent = (meta && meta.views) ? meta.views : "";
+  $("channelName").textContent = (meta && meta.author) || "";
+  $("videoDesc").textContent = (meta && meta.desc) || "";
+
+  var ph=$("placeholder"), f=$("ytFrame");
+  ph.style.display="none";
+  f.style.display="block";
+  f.src = "https://www.youtube.com/embed/" + id + "?autoplay=1&rel=0";
+  window.scrollTo(0,0);
+}
+
+function drawGrid(list){
+  var grid=$("videoGrid");
+  $("loading").style.display="none";
+  if(!list || !list.length){
+    grid.innerHTML="";
+    return;
+  }
+  $("emptyMsg").style.display="none";
+  var html="";
+  for(var i=0;i<list.length;i++){
+    var v=list[i];
+    var vid=v.videoId||v.videoID||v.id;
+    if(!vid) continue;
+    if(v.type && v.type!=="video") continue;
+    var title=v.title||"無題";
+    var author=v.author||v.authorName||"";
+    var views=v.viewCount||0;
+    var dur=v.lengthSeconds?formatDuration(v.lengthSeconds):(v.duration||"");
+    var thumb=(v.videoThumbnails&&v.videoThumbnails[0])?v.videoThumbnails[0].url
+      :(v.thumbnail||("https://img.youtube.com/vi/"+vid+"/hqdefault.jpg"));
+    html+='<div class="card" data-id="'+vid+'">';
+    html+='<div class="thumb"><img src="'+thumb+'" alt="" loading="lazy"><span class="duration">'+dur+'</span></div>';
+    html+='<div class="meta"><div class="title">'+title+'</div>';
+    html+='<div class="channel">'+author+'</div>';
+    html+='<div class="stats">'+formatViews(views)+'視聴</div></div></div>';
+  }
+  grid.innerHTML=html;
+  var cards=grid.getElementsByClassName("card");
+  for(var j=0;j<cards.length;j++){
+    cards[j].onclick=function(){
+      var id=this.getAttribute("data-id");
+      playById(id, null);
+    };
+  }
+}
+
+function trySearch(q, idx){
+  idx = idx||0;
+  if(idx >= API_LIST.length){
+    $("loading").style.display="none";
+    $("emptyMsg").style.display="block";
+    $("emptyMsg").className="empty error";
+    $("emptyMsg").innerHTML="検索APIに接続できませんでした。<br>下の「YouTubeのURLを貼って再生」を使ってください。";
+    return;
+  }
+  var api = API_LIST[idx];
+  $("loading").textContent = "検索中... ("+(idx+1)+"/"+API_LIST.length+")";
+  fetch(api + "/api/v1/search?q=" + encodeURIComponent(q) + "&type=video")
+    .then(function(r){ if(!r.ok) throw new Error("http"); return r.json(); })
+    .then(function(data){
+      var list = Array.isArray(data) ? data : (data.items||data.results||[]);
+      list = list.filter(function(v){ return !v.type || v.type==="video" || v.videoId || v.videoID; });
+      $("sectionTitle").textContent = "「"+q+"」の検索結果（"+list.length+"件）";
+      if(list.length===0){
+        $("emptyMsg").style.display="block";
+        $("emptyMsg").className="empty";
+        $("emptyMsg").textContent="見つかりませんでした";
+      }
+      drawGrid(list);
+    })
+    .catch(function(){
+      trySearch(q, idx+1);
+    });
+}
+
+function doSearch(){
+  var raw = ($("searchInput").value||"").trim();
+  if(!raw){
+    $("emptyMsg").style.display="none";
+    $("videoGrid").innerHTML="";
+    $("sectionTitle").textContent="検索結果";
+    return;
+  }
+
+  // URLなら直接再生
+  var id = extractVideoId(raw);
+  if(id && (raw.indexOf("http")===0 || raw.indexOf("youtu")!==-1 || raw.length===11)){
+    playById(id, null);
+    return;
+  }
+
+  showHome();
+  $("videoGrid").innerHTML="";
+  $("emptyMsg").style.display="none";
+  $("loading").style.display="block";
+  $("sectionTitle").textContent="検索中...";
+  trySearch(raw, 0);
+}
+
+function playFromUrl(){
+  var raw = ($("urlInput").value||"").trim();
+  var id = extractVideoId(raw);
+  if(!id){
+    alert("有効なYouTubeのURL（または動画ID）を貼ってください");
+    return;
+  }
+  playById(id, null);
+}
+
+$("searchBtn").onclick = doSearch;
+$("searchInput").onkeydown = function(e){
+  if(e.key==="Enter"||e.keyCode===13){ e.preventDefault(); doSearch(); }
+};
+$("urlPlayBtn").onclick = playFromUrl;
+$("urlInput").onkeydown = function(e){
+  if(e.key==="Enter"||e.keyCode===13){ e.preventDefault(); playFromUrl(); }
+};
+$("logoBtn").onclick = showHome;
+$("backBtn").onclick = showHome;
+})();
+</script>
+</body>
+</html>
