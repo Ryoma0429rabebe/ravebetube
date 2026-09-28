@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://www.youtube-nocookie.com https://www.youtube.com; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src https://www.youtube-nocookie.com https://www.youtube.com; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none';">
+<title>ラベベTube</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0f0f0f;color:#f1f1f1;font-family:system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;min-height:100vh}
+header{padding:14px 16px;border-bottom:1px solid #222}
+.logo{font-size:22px;font-weight:800;color:#ff4d6d}
+.logo span{color:#fff}
+main{max-width:800px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:20px;margin-bottom:8px}
+.hint{font-size:13px;color:#aaa;line-height:1.6;margin-bottom:20px}
+.box{background:#1a1a1a;border-radius:14px;padding:18px}
+label{display:block;font-size:14px;font-weight:600;margin-bottom:10px}
+input{width:100%;background:#121212;border:1px solid #333;border-radius:10px;color:#fff;padding:12px 14px;font-size:15px;outline:none;margin-bottom:12px}
+button{width:100%;padding:13px;border:none;border-radius:10px;background:#ff4d6d;color:#fff;font-weight:700;font-size:15px;cursor:pointer}
+.ex{font-size:12px;color:#666;margin-top:10px;line-height:1.6}
+.ex code{background:#222;padding:2px 6px;border-radius:4px;color:#ccc}
+.back{display:inline-block;margin-bottom:14px;color:#aaa;font-size:14px;cursor:pointer}
+.player{width:100%;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;margin-bottom:12px}
+.player iframe{width:100%;height:100%;border:0}
+.ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#666;font-size:14px}
+.title{font-size:15px;font-weight:700;word-break:break-all}
+.meta{font-size:12px;color:#888;margin-top:6px;word-break:break-all}
+.hide{display:none!important}
+.note{margin-top:18px;font-size:12px;color:#666;line-height:1.5}
+</style>
+</head>
+<body>
+<header><div class="logo">ラベベ<span>Tube</span></div></header>
+<main>
+  <div id="home">
+    <h1>動画を再生</h1>
+    <p class="hint">YouTubeのURLを貼ると、このページ内で再生します。<br>外部の検索サーバーには接続しません。</p>
+    <div class="box">
+      <label>YouTubeのURL</label>
+      <input id="url" type="text" placeholder="ここに貼ってください" autocomplete="off" spellcheck="false">
+      <button type="button" id="btn">再生する</button>
+      <div class="ex">
+        例：<br>
+        <code>https://www.youtube.com/watch?v=xxxxx</code><br>
+        <code>https://youtu.be/xxxxx</code>
+      </div>
+    </div>
+    <p class="note">接続先は YouTube（youtube-nocookie.com）のみです。</p>
+  </div>
+
+  <div id="play" class="hide">
+    <div class="back" id="back">← 戻る</div>
+    <div class="player">
+      <div class="ph" id="ph">読み込み中...</div>
+      <iframe id="frame" class="hide" title="YouTube video"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen
+        referrerpolicy="no-referrer"></iframe>
+    </div>
+    <div class="title" id="title">YouTube動画</div>
+    <div class="meta" id="meta"></div>
+  </div>
+</main>
+<script>
+(function(){
+  function $(id){return document.getElementById(id)}
+  function getId(s){
+    s=(s||"").trim();
+    if(/^[a-zA-Z0-9_-]{11}$/.test(s)) return s;
+    try{
+      var u=new URL(s.indexOf("http")===0?s:"https://"+s);
+      var h=u.hostname.replace(/^www\./,"");
+      if(h==="youtu.be"){
+        var p=u.pathname.replace(/^\//,"").split("/")[0];
+        return (p&&p.length>=11)?p.slice(0,11):null;
+      }
+      if(h.indexOf("youtube.com")!==-1||h.indexOf("youtube-nocookie.com")!==-1){
+        var v=u.searchParams.get("v");
+        if(v&&v.length>=11) return v.slice(0,11);
+        var a=u.pathname.split("/").filter(Boolean);
+        for(var i=0;i<a.length-1;i++){
+          if(["embed","shorts","live","v","e"].indexOf(a[i])!==-1){
+            var id=a[i+1].slice(0,11);
+            if(id.length===11) return id;
+          }
+        }
+      }
+    }catch(e){}
+    var m=s.match(/(?:v=|\/embed\/|\/shorts\/|\/live\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    return m?m[1]:null;
+  }
+  function goHome(){
+    $("play").classList.add("hide");
+    $("home").classList.remove("hide");
+    var f=$("frame");
+    f.removeAttribute("src");
+    f.classList.add("hide");
+    $("ph").classList.remove("hide");
+  }
+  function play(){
+    var id=getId($("url").value);
+    if(!id){alert("YouTubeのURLを確認してください");return}
+    $("home").classList.add("hide");
+    $("play").classList.remove("hide");
+    $("title").textContent="YouTube動画";
+    $("meta").textContent="https://www.youtube.com/watch?v="+id;
+    $("ph").classList.add("hide");
+    var f=$("frame");
+    f.classList.remove("hide");
+    // 公式のプライバシー強化埋め込みのみ
+    f.src="https://www.youtube-nocookie.com/embed/"+encodeURIComponent(id)+"?rel=0";
+    window.scrollTo(0,0);
+  }
+  $("btn").onclick=play;
+  $("url").onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();play()}};
+  $("back").onclick=goHome;
+})();
+</script>
+</body>
+</html>
